@@ -9,6 +9,9 @@ from langchain.embeddings import HuggingFaceInstructEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
+from langchain.llms import HuggingFaceHub
+
+import os
 
 from htmlTemplates import bot_template, user_template, css
 
@@ -41,9 +44,10 @@ def get_vectorstore(text_chunks):
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vectorstore
 
+#######################################################################
 
 def get_conversation_chain(vectorstore):
-    llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
+    llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512}, huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN"))
 
     memory = ConversationBufferMemory(
         memory_key='chat_history', return_messages=True)
@@ -54,6 +58,7 @@ def get_conversation_chain(vectorstore):
     )
     return conversation_chain
 
+#######################################################################
 
 def handle_userinput(user_question):
     response = st.session_state.conversation({'question': user_question})
@@ -67,11 +72,11 @@ def handle_userinput(user_question):
             st.write(bot_template.replace(
                 "{{MSG}}", message.content), unsafe_allow_html=True)
 
+#######################################################################
 
 def main():
     load_dotenv()
-    st.set_page_config(page_title="Chat with multiple PDFs",
-                       page_icon=":books:")
+    st.set_page_config(page_title="Chat with multiple PDFs", page_icon=":books:")
     st.write(css, unsafe_allow_html=True)
 
     if "conversation" not in st.session_state:
@@ -86,8 +91,7 @@ def main():
 
     with st.sidebar:
         st.subheader("Your documents")
-        pdf_docs = st.file_uploader(
-            "Upload your PDFs here and click on 'Process'", accept_multiple_files=True)
+        pdf_docs = st.file_uploader("Upload your PDFs here and click on 'Process'", accept_multiple_files=True)
         if st.button("Process"):
             with st.spinner("Processing"):
                 # get pdf text
@@ -100,9 +104,7 @@ def main():
                 vectorstore = get_vectorstore(text_chunks)
 
                 # create conversation chain
-                st.session_state.conversation = get_conversation_chain(
-                    vectorstore)
-
+                st.session_state.conversation = get_conversation_chain(vectorstore)
 
 if __name__ == '__main__':
     main()
